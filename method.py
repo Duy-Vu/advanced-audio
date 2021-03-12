@@ -6,9 +6,22 @@ from tools.argument_parsing import get_argument_parser
 from data_handler.dataset import ASDataset, get_data_loader
 import logging
 from modules.triresnet import TridentResNet
+from modules.resnest50 import ResNeSt50
 import torch
 import torch.nn as nn
 import numpy as np
+import time
+import sklearn
+
+args = get_argument_parser().parse_args()
+
+logging.basicConfig(
+    filename=args.log_dir,
+    level=logging.DEBUG,
+    format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+)
+log = logging.getLogger(__name__)
 
 def dataset(settings_data, hpram_settings, is_testing):
     batch_size = hpram_settings["batch_size"]
@@ -84,12 +97,13 @@ def dataset(settings_data, hpram_settings, is_testing):
         return test_set
 
 
-def _do_training(model, optimizer, loss_fn, scheduler, train_loader, val_loader, epochs, device):
+def _do_training(model, optimizer, loss_fn, scheduler, train_loader, val_loader, settings, device):
     train_loss = []
     val_loss = []
     val_accs = []
     best_loss = float("inf")
-    for epoch in range(epochs):
+    for epoch in range(settings["epochs"]):
+        start_time = time.time()
         model.train() 
         for feature,target in train_loader:
             feature = feature.to(device)
@@ -117,14 +131,36 @@ def _do_training(model, optimizer, loss_fn, scheduler, train_loader, val_loader,
                 val_accs.append(val_acc.item())
                 if loss < best_loss:
                     best_loss = loss.item()
-                    torch.save(model.state_dict(), f"triresnet_1.pt")
+                    torch.save(model.state_dict(), f'save_models/{settings["save_model"]}')
 
 
-        scheduler.step()
-        log.info(f"Epoch {1}: Train loss: {np.mean(train_loss)} | Val loss: {np.mean(val_loss)} | Val acc: {np.mean(val_accs)}")
+        scheduler.step(np.mean(val_loss))
+        log.info(f"Epoch {epoch}: Train loss: {np.mean(train_loss)} | Val loss: {np.mean(val_loss)} | Val acc: {np.mean(val_accs)} | Time: {time.time()-start_time}")
+
+def _do_evaluation(model,eva_loader, settings, device):
+    checkpoint = torch.load(f'save_models/{settings["save_model"]}', map_location=device)
+    model.load_state_dict(checkpoint)
+
+    pred = []
+    targets = []
+    model.eval()
+    with torch.no_grad():
+        for batch in eva_loader:
+            if len(batch)>1:
+                feature, target = batch
+                target = target.to(device)
+            else:
+                feature = batch
+            feature = feature.to(device)
+            y_hat = model(feature)
+
+            pred.extend(y_hat.argmax(axis=1).cpu().numpy().tolist())
+            targets.extend(target.squeeze(1).cpu().numpy())
+
+    log.info(sklearn.metrics.accuracy_score(pred,targets))
+    return pred, target 
 
 def main():
-    args = get_argument_parser().parse_args()
 
     file_dir = args.file_dir
     config_file = args.config_file
@@ -132,12 +168,6 @@ def main():
     verbose = args.verbose
     job_id = args.job_id
 
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S',
-    )
-    log = logging.getLogger(__name__)
     settings = file_io.load_yaml_file(Path(
         file_dir, f'{config_file}.{file_ext}'))
 
@@ -147,10 +177,17 @@ def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     log.info("Loading model")
-    model = TridentResNet(pretrained=True)
+    model = None
+    if model_settings["model_name"] == "triresnet":
+        model = TridentResNet(pretrained=True)
+    elif model_settings["model_name"] == "resnest":
+        model = ResNeSt50(model_name=model_settings['submodel_name'],
+                        pretrained=model_settings["pretrained"],
+                        n_classes=model_settings["n_classes"],
+                        )
     model.to(device)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+    optimizer = torch.optim.SGD(model.parameters(), lr=hpram_settings["optimizer"]["lr"])
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", patience=5, factor=0.3, verbose=True)
     loss_fn = nn.CrossEntropyLoss()
 
@@ -160,10 +197,15 @@ def main():
         log.info(f'Training data shape: {len(train_loader)}')
         log.info(f'Validation data shape: {len(val_loader)}')
         log.info(f'Evaluation data shape: {len(eva_loader)}')
-
+        
         _do_training(model,optimizer, loss_fn, scheduler, train_loader, 
-                    val_loader, hpram_settings["epochs"], device)
+                    val_loader, hpram_settings, device)
+        #_do_evaluation(model, eva_loader, hpram_settings, device)
+        log.info(f'Predicting on Evaluation set')
+        predictions, targets = _do_evaluation(model, eva_loader, hpram_settings, device)
+
     if settings["flow"]["testing"]:
         testing_loader = dataset(dataset_settings, hpram_settings, is_testing=True)
+
 if __name__ == '__main__':
     main()
