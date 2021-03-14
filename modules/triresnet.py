@@ -14,10 +14,11 @@ class TridentResNet(nn.Module):
             self.resnet_1 = models.resnet18(pretrained=False)
             self.resnet_2 = models.resnet18(pretrained=False)
             self.resnet_3 = models.resnet18(pretrained=False)
+        """
         self.resnet_1.conv1 = nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
         self.resnet_2.conv1 = nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
         self.resnet_3.conv1 = nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
-
+        """
 
         self.resnet_1.fc = nn.Linear(512, 256)
         self.resnet_2.fc = nn.Linear(512, 256)
@@ -42,10 +43,10 @@ class TridentResNet(nn.Module):
         
         
     def forward(self, x):
-        x = x.unsqueeze(1).transpose(2,3)
-        x1 = self.resnet_1(x[:,:,:,:64])
-        x2 = self.resnet_2(x[:,:,:,64:128])
-        x3 = self.resnet_3(x[:,:,:,128:])
+        #x = x.unsqueeze(1).transpose(2,3)
+        x1 = self.resnet_1(x[:,:,:64,:])
+        x2 = self.resnet_2(x[:,:,64:128,:])
+        x3 = self.resnet_3(x[:,:,128:,:])
         """ 
         x1 = self.fc_1(x1)
         x2 = self.fc_2(x2)

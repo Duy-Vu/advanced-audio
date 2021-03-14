@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Tuple, Optional, Union, List
 from pickle import load as pickle_load
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, random_split
 import pandas as pd
 from tools.file_io import get_files_from_dir_with_pathlib
 import librosa
@@ -54,14 +54,15 @@ class ASDataset(Dataset):
 
         if split != "test":
             self.df = pd.read_csv(Path(meta_parent_dir, meta_dir), sep="\t",index_col=["filename"]) 
-            cpickle_path = [f'{f.split(".")[0].split("audio/")[1]}.cpickle' for f in self.df.index]
+            cpickle_path = [f'{f.split(".")[0].split("audio/")[1]}.pkl' for f in self.df.index]
             self.files = [f for f in self.files if f.name in cpickle_path]
-
+            """
             audio_files = []
             self.scenes = []
             for f in self.files:
                 audio_file = f'audio/{f.name.split(".")[0]}.wav' 
                 self.scenes.append(scene_dict[self.df.loc[audio_file].values[0]])
+            """
         self.load_into_memory = load_into_memory
         self.items = [None for _ in range(len(self.files))]
 
@@ -103,23 +104,12 @@ class ASDataset(Dataset):
         :rtype: (np.ndarray, np.ndarray)
         """
         if self.load_into_memory:
-            feature = self.items[item]["_data"]
+            feature = self.items[item]["features"]
         else:
-            feature = self._load_file(self.files[item])["_data"]
-        #feature = librosa.power_to_db(feature).astype(np.float32)
-        """
-        feature = mono_to_color(feature)
-        if self.normalize: 
-            MEAN = np.array([0.485, 0.456, 0.406])
-            STD = np.array([0.229, 0.224, 0.225])
-            feature = normalize(feature, mean=MEAN, std=STD)
-        """
-
-        if self.split != "test":
-            scene = self.scenes[item]
+            features_and_classes = self._load_file(self.files[item])
+            feature = features_and_classes['features']
+            scene = features_and_classes['class']
             return torch.Tensor(feature), torch.LongTensor([scene])
-        else:
-            return torch.Tensor(feature)
 
 
 def get_data_loader(
@@ -158,6 +148,23 @@ def normalize(image, mean, std):
     image = (image / 255.0).astype(np.float32)
     image = (image - mean) / std
     return np.moveaxis(image, 2, 0)
+
+
+def split_dataset(dataset, splits=(0.85, 0.15)):
+    """
+    Getting dataset split
+    """
+    #dataset = MyDataset(data_dir=Path(data_dir))
+    
+    # Split data
+    train, valid = splits
+    num_train = int(dataset.__len__() * train)
+    num_valid = dataset.__len__() - num_train
+
+    return random_split(dataset=dataset, 
+                        lengths=[num_train, num_valid], 
+                        generator=torch.Generator().manual_seed(42))
+
 
 # EOF
 
