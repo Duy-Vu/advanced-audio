@@ -1,0 +1,12 @@
+conda create --name tf-dcase
+conda activate torch-dcase
+conda install ipython==6.5.0
+conda install numpy
+conda install -c anaconda cudatoolkit
+conda install -c anaconda cudnn
+conda install pytorch torchvision torchaudio cudatoolkit=10.2 -c pytorch
+conda install -c conda-forge librosa
+conda install pandas
+(Optional)
+pip install absl-py==0.9.0
+pip install dcase_util==0.2.12
