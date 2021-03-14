@@ -226,11 +226,6 @@ def main():
     model = None
     if model_settings["model_name"] == "triresnet":
         model = TridentResNet(pretrained=False)
-    elif model_settings["model_name"] == "resnest":
-        model = ResNeSt50(model_name=model_settings['submodel_name'],
-                        pretrained=model_settings["pretrained"],
-                        n_classes=model_settings["n_classes"],
-                        )
     elif model_settings["model_name"] == "triresnet_2":
         model = TridentResNet2(pretrained=False)
     elif model_settings["model_name"] == "resnet_d":
