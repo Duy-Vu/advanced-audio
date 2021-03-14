@@ -178,7 +178,7 @@ def _do_training(model, optimizer, loss_fn, scheduler, train_loader, val_loader,
         if patience > settings['patience']:
             log.info(f'Early stopping, best loss at {best_epoch}')
             plot_util(epoch, train_losses, val_losses, "Loss")
-            plot_util(epoch, train_accs, val_s, "Loss")
+            plot_util(epoch, train_accs, val_accs, "Accuracy")
             return
         else:
             log.info(f"Epoch {epoch}: Train loss: {np.mean(train_loss)} | Train acc: {train_acc} |Val loss: {np.mean(val_loss)} | Val acc: {val_acc} | Time: {time.time()-start_time}")
