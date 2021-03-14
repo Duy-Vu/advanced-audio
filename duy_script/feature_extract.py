@@ -102,13 +102,11 @@ def serialize_features_and_classes(
     with f_path.open('wb') as f:
         pickle.dump(features_and_classes, f, protocol=pickle.HIGHEST_PROTOCOL)
 
-
 def feature_extration(output_dev_path: str,
                       output_test_path: str,
                       all_data_path: str,
                       test_path: str,
-                      parent_dir: str = None,
-                      amount: int = -1) \
+                      parent_dir: str = None) \
         -> None:
     
     df_test = read_csv(parent_dir + test_path, delimiter='\t')
@@ -120,11 +118,7 @@ def feature_extration(output_dev_path: str,
         i = 0
         for row in csv_reader:
             print(i)
-            if amount > 0:  # Only get a subset for example
-                if i == amount:
-                    break
             i += 1
-
             # Get file name
             _, values = list(row.items())[0]
             file_name, scene_label = values.split('\t')[:2]
@@ -155,7 +149,6 @@ if __name__ == "__main__":
         output_test_path=Path('testing'),
         all_data_path='meta.csv',
         test_path='evaluation_setup/fold1_test.csv',
-        parent_dir=data_path,
-        amount=-1) 
+        parent_dir=data_path) 
 
 # EOF

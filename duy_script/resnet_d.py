@@ -1,9 +1,7 @@
 # Source: https://github.com/MihawkHu/DCASE2020_task1/blob/2384da9d357bc6be9648701a0ae0c4b4be285e36/task1a/10class/resnet/resnet.py
-from torch import Tensor, cat, reshape, rand
-from torch.nn import Module, Sequential, Conv2d, MaxPool2d, BatchNorm2d, ReLU,\
-                        Dropout2d, Linear, AdaptiveAvgPool2d
+from torch import Tensor, cat, rand
+from torch.nn import Module, Sequential, Conv2d, BatchNorm2d, ReLU, AdaptiveAvgPool2d, Linear
 from torchvision.models import resnet18
-from torch.optim import Adam
 
 __author__ = 'Duy Vu'
 
@@ -62,7 +60,8 @@ class ResNet_d(Module):
         return out
 
 if __name__ == "__main__":
-    dnn = ResNet_d()
-    x = rand(4, 3, 128, 423) 
+    dnn = ResNet_d().to('cuda')
+    x = rand(4, 3, 128, 423).to('cuda')
+    dnn.train()
     y = dnn(x)
-    print(y.shape)   
+    print(y)   
