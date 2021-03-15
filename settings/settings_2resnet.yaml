@@ -1,0 +1,30 @@
+flow:
+  training: false
+  continue_training: false
+  testing: true
+
+dataset:
+  data_features_dir: "features_128"
+  data_eval_features_dir: "eval_features"
+  data_parent_dir: "/home/trann/scratch/advanced-audio/"
+  meta_parent_dir: "/home/trann/scratch/TAU-urban-acoustic-scenes-2020-mobile/TAU-urban-acoustic-scenes-2020-mobile-development/evaluation_setup" 
+  meta_train_dir: "fold1_train.csv"
+  meta_eva_dir: "fold1_evaluate.csv"
+  meta_val_dir: "fold1_val.csv"
+
+model:
+  model_name: "resnet_d"
+
+hyperparams:
+  batch_size: 32
+  epochs: 200
+  num_workers: 4
+  patience: 20
+  loss_thr: !!float 1e-4
+  optimizer:
+    lr: !!float 5e-4
+  grad_norm:
+    value: !!float 1.
+    norm: 2
+  save_model: "resnet_d_4.pt"
+  loss: "cross"
