@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, confusion_matrix, ConfusionMatrixDisplay, plot_confusion_matrix
 from numpy import argmax
 
 def plot_stats(ax, stats, stats_label, title):
@@ -43,8 +44,42 @@ def record_stats(loss, accuracy, hyperparam):
 def correct_classified(pred, truth):
     return accuracy_score(truth.cpu().detach().numpy(), argmax(pred.cpu().detach().numpy(), axis=1), normalize=False)
 
-if __name__ == "__main__":
-    record_stats(loss=([1, 2, 3, 10], [0, -1, 3, 5]), 
-                 accuracy=([0, -10, 2, 0.5], [0, 10, 20, 50]), 
-                 hyperparam={'lr': 1e-5, 'weight decay':1e-5})
+def acc_per_class(y_true, y_pred, labels, display=False):
+    #Get the confusion matrix
+    cm = confusion_matrix(y_true, y_pred)
+    print(cm)
+    # i-th row: true label
+    # j-th column: predicted label
 
+    total_data_per_label = np.sum(cm, axis=1) 
+    acc_per_class = cm.diagonal() / total_data_per_label
+    print('total_data_per_label', total_data_per_label)
+
+    #ConfusionMatrixDisplay(cm).plot() 
+
+    return dict(zip(labels, acc_per_class)) 
+
+if __name__ == "__main__":
+    # record_stats(loss=([1, 2, 3, 10], [0, -1, 3, 5]), 
+    #              accuracy=([0, -10, 2, 0.5], [0, 10, 20, 50]), 
+    #              hyperparam={'lr': 1e-5, 'weight decay':1e-5})
+    
+    scene_dict = {
+        "airport": 0,
+        "shopping_mall": 1,
+        "metro_station": 2,
+        "street_pedestrian": 3,
+        "public_square": 4,
+        "street_traffic": 5,
+        "tram": 6,
+        "bus": 7,
+        "metro": 8,
+        "park": 9
+    }
+    target_labels = list(scene_dict.keys())
+    y_pred = np.random.randint(low=0, high=len(target_labels), size=500)
+    y_true = np.arange(0, 500) % len(target_labels)
+
+    acc = acc_per_class(y_true, y_pred, target_labels)
+    print(acc)
+    # plot_confusion_matrix(resnet, X_test, y_test)
