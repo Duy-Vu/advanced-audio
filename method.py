@@ -15,6 +15,7 @@ import numpy as np
 import time
 import sklearn
 import matplotlib.pyplot as plt
+from sklearn.metrics import accuracy_score, confusion_matrix, ConfusionMatrixDisplay, plot_confusion_matrix
 
 args = get_argument_parser().parse_args()
 
@@ -25,6 +26,32 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S',
 )
 log = logging.getLogger(__name__)
+
+scene_dict = {
+    "airport": 0,
+    "shopping_mall": 1,
+    "metro_station": 2,
+    "street_pedestrian": 3,
+    "public_square": 4,
+    "street_traffic": 5,
+    "tram": 6,
+    "bus": 7,
+    "metro": 8,
+    "park": 9
+}
+
+def acc_per_class(y_true, y_pred, labels, display=False):
+    #Get the confusion matrix
+    cm = confusion_matrix(y_true, y_pred)
+    print(cm)
+    # i-th row: true label
+    # j-th column: predicted label
+
+    total_data_per_label = np.sum(cm, axis=1) 
+    acc_per_class = cm.diagonal() / total_data_per_label
+    print('total_data_per_label', total_data_per_label)
+
+    return dict(zip(labels, acc_per_class)) 
 
 def plot_util(epochs, train, val, title):
     epochs = range(epochs)
@@ -159,7 +186,7 @@ def _do_training(model, optimizer, loss_fn, scheduler, train_loader, val_loader,
                 pred.extend(y_hat.argmax(axis=1).cpu().numpy().tolist())
                 targets.extend(target.squeeze(1).cpu().numpy().tolist())
             val_acc = sklearn.metrics.accuracy_score(pred,targets)
-            scheduler.step(np.mean(val_loss))
+            scheduler.step(val_acc)
         
         # Append to the big lists
         train_losses.append(np.mean(train_loss))
@@ -182,6 +209,8 @@ def _do_training(model, optimizer, loss_fn, scheduler, train_loader, val_loader,
             return
         else:
             log.info(f"Epoch {epoch}: Train loss: {np.mean(train_loss)} | Train acc: {train_acc} |Val loss: {np.mean(val_loss)} | Val acc: {val_acc} | Time: {time.time()-start_time}")
+    plot_util(epoch, train_losses, val_losses, "Loss")
+    plot_util(epoch, train_accs, val_accs, "Accuracy")
 
 def _do_evaluation(model,eva_loader, settings, device):
     checkpoint = torch.load(f'save_models/{settings["save_model"]}', map_location=device)
@@ -204,6 +233,8 @@ def _do_evaluation(model,eva_loader, settings, device):
             targets.extend(target.squeeze(1).cpu().numpy())
     log.info("Accuracy score")
     log.info(sklearn.metrics.accuracy_score(pred,targets))
+    accuracies = acc_per_class(targets, pred, scene_dict.keys(), display=False)
+    log.info(accuracies)
     return pred, target 
 
 def main():
@@ -240,7 +271,7 @@ def main():
 
     optimizer = torch.optim.Adam(model.parameters(), lr=hpram_settings["optimizer"]["lr"])
     #scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=10, eta_min=0)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", patience=5, factor=0.3, verbose=True)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="max", patience=20, factor=0.3, verbose=True)
     if hpram_settings['loss'] == "focal":
         loss_fn = FocalLoss(gamma=2)
     else:
