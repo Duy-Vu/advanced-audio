@@ -1,5 +1,5 @@
 flow:
-  training: false
+  training: true
   continue_training: false
   testing: true
 
